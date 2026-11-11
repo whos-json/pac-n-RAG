@@ -227,14 +227,17 @@ function createSemantic({ dataDir, embedder, getTexts, queryTimeoutMs = 3000, ba
     } catch (e) { warn(e); queryFailedAt = now(); return null; }
     if (!qv) { queryFailedAt = now(); return null; }
     queryFailedAt = null;
-    const scored = [];
+    const scored = [], all = [];
     texts.forEach((t, i) => {
       const v = vecs.get(hashOf(t));
       if (!v || v.length !== qv.length) return;
       let s = 0;
       for (let j = 0; j < v.length; j++) s += v[j] * qv[j];
+      all.push(s);
       if (s >= minCosine) scored.push({ i, s });
     });
+    // A ranker that scores every passage alike cannot say which one is relevant, so it contributes nothing.
+    if (all.length > 1 && Math.max(...all) - Math.min(...all) < 1e-6) return [];
     return scored.sort((a, b) => b.s - a.s).slice(0, limit).map((x) => x.i);
   }
 

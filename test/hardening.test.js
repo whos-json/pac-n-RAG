@@ -102,7 +102,7 @@ test('extraction scope needs "from", ignores category names that look like kinds
     assert.equal(all.rows.length >= 2, true, JSON.stringify(all.rows));
     assert.equal((await t.ask('extract amounts from amount')).category, 'Amount');
     assert.equal((await t.ask('extract amounts from lease')).mode, 'help');
-    assert.equal((await t.ask('extract amounts in 2026')).mode, 'extract');
+    assert.equal((await t.ask('extract amounts in 2026')).mode, 'help', 'a year is a filter the table cannot apply, so say so');
     const one = (await t.ask('extract emails')).answer;
     assert.match(one, /^No emails/);
   } finally { await t.done(); }

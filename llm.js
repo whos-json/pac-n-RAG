@@ -49,6 +49,7 @@ function normalise(input, prev = {}) {
     key = b.apiKey.trim();
     if (key.length > 500 || /[\s\u0000-\u001f\u007f-\u009f]/.test(key) || /[^\x21-\x7e]/.test(key)) throw new Error('That API key has spaces or odd characters. Paste only the key.');
   }
+  if (key && u.protocol === 'http:' && !isLoopbackHost(u.hostname)) throw new Error('An API key is only sent over https:// (or to this computer), so the key is not sent in the clear.');
   if (def.needsKey && !key) throw new Error(prev.apiKey && prev.provider === provider ? 'You changed the server address, so paste the API key again (a saved key is never sent to a new address).' : `${def.label} needs an API key.`);
   if (key) out.apiKey = key;
   return out;

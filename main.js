@@ -1,7 +1,8 @@
-// Desktop shell: runs the local server in-process on a free loopback port and shows it in a window.
+// Desktop shell: runs the local server in-process on loopback and shows it in a window.
 const { app, BrowserWindow, shell, dialog, Menu } = require('electron');
 const path = require('path');
 
+const DESKTOP_PORT = 4747; // the same default as the browser build; any free port is used if this one is taken
 let server = null;
 let win = null;
 let dataDir = null;
@@ -47,7 +48,10 @@ async function boot() {
     : process.env.PORTABLE_EXECUTABLE_DIR ? path.join(process.env.PORTABLE_EXECUTABLE_DIR, 'PAC-RAG-data')
       : path.join(app.getPath('userData'), 'data');
   const { start } = require('./server.js');
-  server = await start({ port: 0, dataDir });
+  // The origin decides where the browser keeps its preferences (localStorage), so prefer a fixed port and
+  // fall back to any free one only when it is taken, rather than changing the origin on every launch.
+  try { server = await start({ port: DESKTOP_PORT, dataDir }); }
+  catch (e) { if (e.code !== 'EADDRINUSE') throw e; server = await start({ port: 0, dataDir }); }
   const origin = `http://127.0.0.1:${server.port}`;
 
   Menu.setApplicationMenu(Menu.buildFromTemplate([

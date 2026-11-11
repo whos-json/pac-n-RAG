@@ -263,7 +263,7 @@ function parseExtract(q, categories) {
       const exact = categories.find((c) => c.toLowerCase() === name);
       if (exact) return exact;
       const subset = ws.length ? categories.filter((c) => { const w = words(c); return ws.every((a) => w.has(a)); }) : [];
-      if (subset.length > 1) ambiguous = subset; // several rooms fit: say so rather than pick the first one
+      if (subset.length > 1) { ambiguous = subset; return undefined; } // several rooms fit: ask which one rather than pick the first
       return subset[0];
     };
     const found = (asked && lookup(asked)) || lookup(plain);
@@ -281,7 +281,7 @@ function parseExtract(q, categories) {
   const parts = rest.replace(/[?.!]+$/, '').trim().split(/\s*(?:,|&|\band\b)\s*/);
   const plainKinds = parts.every((p) => { p = p.replace(DETERMINERS, '').replace(/\s+(?:numbers?|addresses|address)$/, '').trim(); return KIND_WHOLE.some((re) => re.test(p)); });
   if (strict && (unknownScope || !hits.length || !plainKinds)) return null;
-  if (!strict && hits.length && !plainKinds) return { kind: undefined, kinds: [], extraKinds: false }; // "extract the cost of …" is a question, not a table
+  if (!strict && hits.length && !plainKinds && /\b(?:of|for|about|on|with|that|which|where|regarding)\b/.test(rest)) return { kind: undefined, kinds: [], extraKinds: false }; // "extract the cost of …" restricts by topic, which a table cannot do
   return { kind: kinds[0], kinds, extraKinds: hits.length > 1, category, unknownScope: hits.length ? unknownScope : undefined };
 }
 
@@ -331,9 +331,9 @@ function extractive(plan, sources, df, N) {
       if (k > 0 && want.some((w) => w(x))) k += 0.5 * mass;
       if (!best || k > best.k + 1e-9 || (Math.abs(k - best.k) <= 1e-9 && raw > best.raw + 1e-9)) best = { x, k, raw, pos };
     });
-    return { n: s.n, k: best ? best.k : 0, line: best ? best.x : s.text };
+    return { n: s.n, k: best ? best.k : 0, line: best ? best.x : s.text, meaning: !!s.byMeaning };
   });
-  const useful = picked.filter((p) => p.k > 0); // a passage sharing no word with the question is not an answer
+  const useful = picked.filter((p) => p.k > 0 || p.meaning); // a lexical match with no shared word is not an answer; a passage found by meaning is quoted
   return useful.sort((a, b) => b.k - a.k || a.n - b.n).slice(0, 3)
     .map((p) => `${p.line.length > 300 ? p.line.slice(0, 300) + '…' : p.line} [${p.n}]`).join('\n');
 }
@@ -458,7 +458,7 @@ function createApp(dataDir, opts = {}) {
     if (a.length === b.length) return a.slice(i + 1) === b.slice(i + 1);
     return a.length > b.length ? a.slice(i + 1) === b.slice(i) : b.slice(i + 1) === a.slice(i);
   };
-  const QUERY_FILLER = new Set(['find', 'list', 'show', 'extract', 'tell', 'give', 'get', 'please']); // request verbs say nothing about the topic
+  const QUERY_FILLER = new Set(['find', 'list', 'show', 'extract', 'tell', 'give', 'get', 'please', 'number']); // request verbs say nothing about the topic
   // With prev (a follow-up borrowing the last question) the current question's words weigh 3x.
   function buildPlan(q, prev) {
     const { df } = getIdx();
@@ -530,8 +530,8 @@ function createApp(dataDir, opts = {}) {
     const bmKeys = new Set(bm.map((s) => key(s.itemId, s.text)));
     const byKey = new Map();
     bmLive.forEach((s) => byKey.set(key(s.itemId, s.text), s));
-    // A passage found only by meaning must rank near the top to be used at all.
-    const vecKeys = vec.filter((i, r) => live.has(chunks[i].it.id) && (r < 3 || bmKeys.has(key(chunks[i].it.id, chunks[i].text)))).map((i) => { const c = chunks[i]; const kk = key(c.it.id, c.text); if (!byKey.has(kk)) byKey.set(kk, { itemId: c.it.id, title: c.it.title, category: c.it.category, text: c.text }); return kk; });
+    // Passages found only by meaning are marked byMeaning, so the extractive answer may quote them without a shared word.
+    const vecKeys = vec.filter((i) => live.has(chunks[i].it.id)).map((i) => { const c = chunks[i]; const kk = key(c.it.id, c.text); if (!byKey.has(kk)) byKey.set(kk, { itemId: c.it.id, title: c.it.title, category: c.it.category, text: c.text, byMeaning: !bmKeys.has(kk) }); return kk; });
     const fused = embedMod.rrf([bmLive.map((s) => key(s.itemId, s.text)), vecKeys]).slice(0, k)
       .map(({ key: kk, score }, i) => ({ ...byKey.get(kk), n: i + 1, score: +(score * 100).toFixed(3) }));
     if (bm.info) fused.info = bm.info; // the weak-match guard and the history retry read it; without it hybrid mode answered anything
@@ -956,24 +956,35 @@ function createApp(dataDir, opts = {}) {
       }
       const words = ((follow ? `${lastUser.content} ${q}` : q).toLowerCase().match(/[\p{L}\p{N}]+/gu) || []).filter((w) => !STOP.has(w)).map(pluralStem); // the page highlights with its own plural-only stemmer
       const terms = [...new Set([...plan.groups.map((g) => g.t), ...words])];
-      if (weak(sources)) { // a follow-up is checked too: it may borrow a topic that does not answer the new words
+      // A follow-up borrows the last question's words, so its coverage is judged on the new words alone: at least one must appear in the passages found.
+      const newWords = [...new Set(tokenize(q).filter((t) => !QUERY_FILLER.has(t)))];
+      const shown = new Set(sources.flatMap((s) => tokenize(`${s.title} ${s.text}`)));
+      const followMiss = follow && newWords.length > 0 && !newWords.some((t) => shown.has(t));
+      if (follow ? followMiss : weak(sources)) {
         const si = sources.info;
+        const closest = follow || !si
+          ? `None of the passages I found mentions ${newWords.map((w) => `“${w}”`).join(' or ') || 'those words'}.`
+          : `The closest passage (“${si.title}”) only matches ${si.seen.map((t) => `“${t}”`).join(', ')}, not ${si.missing.map((t) => `“${t}”`).join(', ')}.`;
         const via = follow ? ' I read that as a follow-up to your last question, so try asking it in full.' : '';
         const phones = /\b(?:phones?|telephones?|numbers?)\b/i.test(q) ? ' To list phone numbers, try “extract phones from <category>”.' : '';
-        return done({ mode: 'none', answer: `I couldn't find that. The closest passage (“${si.title}”) only matches ${si.seen.map((t) => `“${t}”`).join(', ')}, not ${si.missing.map((t) => `“${t}”`).join(', ')}, so I won't guess.${via}${phones}${unread} ${hint}` });
+        return done({ mode: 'none', answer: `I couldn't find that. ${closest} I won't guess.${via}${phones}${unread} ${hint}` });
       }
       const quoted = extractive(plan, sources, getIdx().df, getIdx().chunks.length);
       if (answerer) {
         try { return done({ mode: 'llm', answer: await answerer(q, sources, history), sources, terms }); }
         catch (e) { return done({ mode: 'extractive', answer: quoted || 'None of these passages quotes your words directly.', sources, terms, note: `The AI model was unavailable (${e.message}), so these are quoted passages.` }); }
       }
-      if (!quoted) return done({ mode: 'none', answer: `I found passages that may be related, but none of them quotes your words, so I won't guess. Try the exact words from your document, or connect an AI model for written answers.${unread} ${hint}` });
+      if (!quoted) {
+        const phones = /\b(?:phones?|telephones?|numbers?)\b/i.test(q) ? ' To list phone numbers, try “extract phones from <category>”.' : '';
+        return done({ mode: 'none', sources, terms, answer: `I found passages on that topic, but none of them says anything about it in words I can quote, so I won't guess. The closest sources are listed below, or try the exact words from your document.${phones}${unread} ${hint}` });
+      }
       return done({
         mode: 'extractive', answer: quoted, sources, terms,
         llmMissing: true,
-        note: localOnly() && settings.provider !== 'none'
-          ? 'PACRAG_LOCAL_ONLY is set, so no AI model is used. These are the passages found, quoted as they are.'
-          : 'No AI model is connected, so I can only show the passages I found, quoted as they are. Connect a llama.cpp server or a cloud API key (AI model…) to get written answers.',
+        note: (sources.some((s) => s.byMeaning) ? 'Some passages matched by meaning rather than by your words, so check the quoted sentence against your question. ' : '')
+          + (localOnly() && settings.provider !== 'none'
+            ? 'PACRAG_LOCAL_ONLY is set, so no AI model is used. These are the passages found, quoted as they are.'
+            : 'No AI model is connected, so I can only show the passages I found, quoted as they are. Connect a llama.cpp server or a cloud API key (AI model…) to get written answers.'),
       });
     }
     if (method === 'GET' && (m = p.match(/^\/files\/([\w.-]+)$/))) {

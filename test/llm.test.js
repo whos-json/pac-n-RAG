@@ -57,6 +57,10 @@ test('settings are validated: provider, URL, https for cloud, key required, odd 
   assert.throws(() => llm.normalise({ provider: 'llamacpp', baseUrl: 'ftp://x' }), /http/);
   assert.throws(() => llm.normalise({ provider: 'llamacpp', baseUrl: 'not a url' }), /valid URL/);
   assert.throws(() => llm.normalise({ provider: 'llamacpp', baseUrl: 'http://u:p@host:1' }), /user name/);
+  assert.throws(() => llm.normalise({ provider: 'llamacpp', baseUrl: 'http://192.168.1.5:8080', apiKey: 'sk-test-key' }), /not sent in the clear/);
+  assert.doesNotThrow(() => llm.normalise({ provider: 'llamacpp', baseUrl: 'http://127.0.0.1:8080', apiKey: 'k' }));
+  assert.doesNotThrow(() => llm.normalise({ provider: 'llamacpp', baseUrl: 'https://llm.example.com', apiKey: 'k' }));
+  assert.doesNotThrow(() => llm.normalise({ provider: 'llamacpp', baseUrl: 'http://192.168.1.5:8080' })); // no key: a LAN server is fine
   assert.throws(() => llm.normalise({ provider: 'openai', baseUrl: 'http://api.example.com/v1', apiKey: 'k', model: 'm' }), /https/);
   assert.throws(() => llm.normalise({ provider: 'openai', model: 'm' }), /API key/);
   assert.throws(() => llm.normalise({ provider: 'openai', apiKey: 'k' }), /model/);

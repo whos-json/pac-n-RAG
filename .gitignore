@@ -1,5 +1,12 @@
 data/
 node_modules/
+
+.env
+.vscode/
+.idea/
 *.log
 .DS_Store
 Thumbs.db
+
+uat/out/
+dist/

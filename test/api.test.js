@@ -11,7 +11,7 @@ const CORPUS = path.join(__dirname, '..', 'uat', 'corpus');
 const H = { 'x-pacrag': '1', 'content-type': 'application/json' };
 
 async function boot(opts = {}, dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pacrag-'))) {
-  const app = await start({ port: 0, dataDir: dir, answerer: null, ...opts });
+  const app = await start({ port: 0, dataDir: dir, answerer: null, embedder: null, ...opts });
   const base = `http://127.0.0.1:${app.port}`;
   const call = async (method, p, body, headers = H) => {
     const r = await fetch(base + p, { method, headers, body: body === undefined ? undefined : typeof body === 'string' || Buffer.isBuffer(body) ? body : JSON.stringify(body) });
@@ -208,10 +208,10 @@ test('answerer: used when present, falls back to quoted passages when it fails',
   try {
     await good.feedFile('lease-clause.txt');
     const r = await good.call('POST', '/api/ask', { q: 'break option', history: [{ role: 'user', content: 'hi' }, { role: 'bogus', content: 'x' }] });
-    assert.equal(r.body.mode, 'claude');
+    assert.equal(r.body.mode, 'llm');
     assert.equal(r.body.answer, 'Answer [1]');
     assert.deepEqual(seen, { q: 'break option', n: 1, h: 1 });
-    assert.equal((await good.call('GET', '/api/status')).body.llm, 'claude');
+    assert.equal((await good.call('GET', '/api/status')).body.llm, 'custom');
   } finally { await good.done(); }
   const bad = await boot({ answerer: async () => { throw new Error('boom'); } });
   try {
@@ -223,14 +223,22 @@ test('answerer: used when present, falls back to quoted passages when it fails',
   } finally { await bad.done(); }
 });
 
-test('an ambiguous note is flagged for review or filed, never lost', async () => {
+test('an ambiguous note is flagged as a ghost with a low-confidence guess, and Keep clears the flag', async () => {
   const t = await boot();
   try {
     await feedAll(t);
     const r = (await t.feedFile('ambiguous.txt')).body;
     assert.equal(r.type, 'file');
-    assert.ok(typeof r.needsReview === 'boolean' && r.category);
+    assert.equal(r.needsReview, true, 'borderline notes go to Ghosts (README Design: categorizer)');
+    assert.equal(r.category, 'Lease');
+    assert.ok(r.confidence < 0.2, `confidence ${r.confidence}`);
+    assert.equal(r.state, 'review');
+    assert.deepEqual(r.actions, ['keep', 'sort', 'delete']);
+    assert.equal((await t.call('GET', `/api/items/${r.id}`)).status, 200, 'never lost');
     const kept = await t.call('PATCH', `/api/items/${r.id}`, { reviewed: true });
+    assert.equal(kept.status, 200);
     assert.equal(kept.body.needsReview, false);
+    assert.equal(kept.body.state, 'filed');
+    assert.ok(!kept.body.actions.includes('keep'));
   } finally { await t.done(); }
 });

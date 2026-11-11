@@ -4,6 +4,7 @@
   'use strict';
   const COL = { bg: '#07200f', trace: '#eafff1', glow: 'rgba(120,255,170,.65)', pellet: '#e0a030', orange: '#f5a623', cyan: '#3fc1f0', lilac: '#d9a8ff', gold: '#ffd35c' };
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const onChange = (mq, fn) => { if (mq.addEventListener) mq.addEventListener('change', fn); else if (mq.addListener) mq.addListener(fn); }; // old Safari only has addListener
   const TAU = Math.PI * 2;
   const PAD = 16, BELT = 170, MIN_ROOM = 120, GAP = 14; // BELT: space below the rooms for the bus, the belly and its caption
 
@@ -48,7 +49,9 @@
     let w = 0, h = 0, pw = 0, ph = 0, dpr = 1, bg = null, cats = [], rooms = [], index = new Map();
     let belly = { x: 0, y: 0, pad: 44, r: 26 }, corridorY = 0;
     const held = new Set(), glow = new Map();
-    let actors = [], eating = 0, hungry = false, looping = false, last = 0, motionOn = true;
+    let actors = [], eating = 0, hungry = false, looping = false, last = 0, motionOn = true, onScreen = true, emptyText = 'The maze is empty. Feed the belly.';
+    const narrow = window.matchMedia('(max-width: 820px)');
+    let eatPulseUntil = 0;
     const calm = () => reduced.matches || !motionOn; // no continuous or travelling animation; highlights still show
 
     const needed = (width) => { // rooms never shrink below MIN_ROOM: the board grows and scrolls instead
@@ -105,10 +108,21 @@
       ctx.translate(x, y);
       if (Math.cos(ang) < 0) { ctx.scale(-1, 1); ang = Math.PI - ang; }
       ctx.rotate(ang);
-      ctx.shadowColor = color; ctx.shadowBlur = 14; ctx.fillStyle = color;
-      ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, r, mouth, TAU - mouth); ctx.closePath(); ctx.fill();
-      ctx.shadowBlur = 0; ctx.fillStyle = '#07200f';
-      ctx.beginPath(); ctx.arc(r * 0.1, -r * 0.5, Math.max(2, r * 0.12), 0, TAU); ctx.fill();
+      // "Byte", our own mascot: a chip with a hinged lid, facing +x, hinged at the back. Lid and jaw swing apart by `mouth` (0..1).
+      const hh = r * 0.62, sw = Math.max(0.02, mouth) * 0.7;
+      const jaw = (upper) => {
+        ctx.save(); ctx.translate(-r, 0); ctx.rotate(upper ? -sw : sw * 0.65); ctx.translate(r, 0);
+        rr(-r, upper ? -hh : 0.05 * r, r * 2, hh, r * 0.22);
+        ctx.shadowColor = color; ctx.shadowBlur = 14; ctx.fillStyle = color; ctx.fill(); ctx.shadowBlur = 0;
+        ctx.fillStyle = '#fff'; // teeth
+        for (let i = 0; i < 4; i++) { const tx = r * 0.2 + i * r * 0.2, ty = upper ? 0 : 0.05 * r; ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(tx + r * 0.1, ty); ctx.lineTo(tx + r * 0.05, ty + (upper ? 1 : -1) * r * 0.2); ctx.closePath(); ctx.fill(); }
+        ctx.restore();
+      };
+      ctx.fillStyle = '#07200f'; rr(-r, -r * 0.05, r * 2, r * 0.1, 0); ctx.fill(); // the dark inside shows as the seam opens
+      jaw(false); jaw(true);
+      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(r * 0.3, -hh - r * 0.05, Math.max(2.5, r * 0.2), 0, TAU); ctx.fill(); // eye on the lid
+      ctx.fillStyle = '#07200f'; ctx.beginPath(); ctx.arc(r * 0.38, -hh - r * 0.05, Math.max(1.2, r * 0.09), 0, TAU); ctx.fill();
+      ctx.fillStyle = color; [-0.6, 0.6].forEach((px) => ctx.fillRect(px * r - r * 0.07, hh + r * 0.05, r * 0.14, r * 0.22)); // pin legs
       ctx.restore();
     }
 
@@ -134,7 +148,7 @@
         ctx.setLineDash([8, 8]); ctx.strokeStyle = 'rgba(234,255,241,.45)'; ctx.lineWidth = 2;
         rr(PAD, PAD, w - PAD * 2, ah, 14); ctx.stroke(); ctx.setLineDash([]);
         ctx.fillStyle = 'rgba(234,255,241,.7)'; ctx.font = '600 14px ui-monospace, Consolas, monospace'; ctx.textAlign = 'center';
-        ctx.fillText('The maze is empty. Feed the belly.', w / 2, PAD + ah / 2);
+        ctx.fillText(emptyText, w / 2, PAD + ah / 2);
         ctx.restore(); return;
       }
       rooms.forEach((r) => {
@@ -191,8 +205,8 @@
         ctx.fillRect(x - pad - 6, y + i * 11 - 2, 6, 4); ctx.fillRect(x + pad, y + i * 11 - 2, 6, 4);
       }
       ctx.restore();
-      const m = hungry ? 0.95 : calm() ? (eating ? 0.85 : 0.5) : eating ? Math.abs(Math.sin(ts / 110)) * 0.95 : (0.5 + 0.5 * Math.sin(ts / 500)) * 0.6 + 0.08;
-      chomper(x, y, r, COL.orange, Math.max(0.04, m), -Math.PI / 2);
+      const m = performance.now() < eatPulseUntil ? Math.abs(Math.sin(ts / 60)) * 0.95 : hungry ? 0.95 : calm() ? (eating ? 0.85 : 0.5) : eating ? Math.abs(Math.sin(ts / 110)) * 0.95 : (0.5 + 0.5 * Math.sin(ts / 500)) * 0.6 + 0.08;
+      chomper(x, y, r * 1.05, COL.orange, Math.max(0.04, m), 0);
       ctx.save(); ctx.fillStyle = hungry ? COL.gold : 'rgba(234,255,241,.7)'; ctx.font = '600 11px ui-monospace, Consolas, monospace'; ctx.textAlign = 'center';
       ctx.fillText(hungry ? 'RELEASE TO FEED' : 'DROP FILES, TEXT OR LINKS HERE', x, y + pad + 22);
       ctx.restore();
@@ -243,7 +257,8 @@
       actors = actors.filter((a) => a.d < a.total);
       finished.forEach((a) => a.done && a.done());
       draw(ts);
-      if (!calm() || actors.length || eating || hungry) requestAnimationFrame(frame); else looping = false;
+      // an idle redraw has nothing to show while the tab is hidden or the board is scrolled off-screen, so the loop pauses and kick() resumes it
+      if (actors.length || eating || hungry || (!calm() && !document.hidden && onScreen)) requestAnimationFrame(frame); else looping = false;
     }
     function kick() { if (!looping) { looping = true; last = performance.now(); requestAnimationFrame(frame); } }
 
@@ -268,10 +283,21 @@
     }
 
     const showBelly = () => { const p = canvas.parentElement; if (p.scrollHeight > p.clientHeight) p.scrollTop = p.scrollHeight; }; // on a phone the belly sits below the fold
+    const showRoom = (id) => { // on a phone, bring the first visited room into view instead of hiding it behind the belly
+      const p = canvas.parentElement, pt = index.get(id);
+      if (pt && p.scrollHeight > p.clientHeight) p.scrollTop = Math.max(0, pt.room.y - 16);
+    };
     const api = {
       setData(data) { cats = data; apply(); },
       setHungry(v) { if (hungry === v) return; hungry = v; if (v) kick(); draw(); },
       setMotion(on) { motionOn = on; kick(); draw(); },
+      setEmptyText(t) { emptyText = t || 'The maze is empty. Feed the belly.'; draw(); },
+      bellyPoint() { const r = canvas.getBoundingClientRect(); return { x: r.left + belly.x, y: r.top + belly.y }; },
+      pulse() { eatPulseUntil = performance.now() + 600; kick(); },
+      overBelly(clientX, clientY) { // is this screen point on the belly (generous mouth area)?
+        const r = canvas.getBoundingClientRect();
+        return Math.hypot(clientX - r.left - belly.x, clientY - r.top - belly.y) <= belly.pad + 36;
+      },
       hold(id) { held.add(id); },
       release(id) { held.delete(id); draw(); },
       digest(promise) {
@@ -296,7 +322,7 @@
         const targets = ids.filter((id) => index.has(id));
         if (!targets.length) return Promise.resolve();
         if (calm() || document.hidden) { flash(targets); return Promise.resolve(); }
-        showBelly();
+        if (narrow.matches) showRoom(targets[0]); else showBelly();
         let pts = exitPts('belly'), at = 'belly';
         const stopIdx = [];
         targets.forEach((id) => { pts = pts.concat(route(at, id).slice(exitPts(at).length)); stopIdx.push({ id, i: pts.length - 1 }); at = id; });
@@ -324,7 +350,9 @@
     // the canvas is aria-hidden: the library list and chat are the accessible paths to everything it shows
     let pending = false;
     new ResizeObserver(() => { if (pending) return; pending = true; requestAnimationFrame(() => { pending = false; resize(); }); }).observe(canvas.parentElement);
-    reduced.addEventListener('change', () => { kick(); draw(); });
+    onChange(reduced, () => { kick(); draw(); });
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) { kick(); draw(); } });
+    if (window.IntersectionObserver) new IntersectionObserver((es) => { onScreen = es[es.length - 1].isIntersecting; if (onScreen) { kick(); draw(); } }).observe(canvas);
     resize();
     kick();
     return api;

@@ -6,65 +6,58 @@
 <title>PAC&amp;RAG</title>
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="stage.css">
+<link rel="stylesheet" href="polish.css">
 </head>
 <body>
 <a class="skip" href="#msg">Skip to chat</a>
-<a class="skip skip2" href="#feed-h">Skip to feeding the belly</a>
+<a class="skip skip2" href="#tab-add">Skip to adding files, notes or links</a>
 <div class="app">
-  <aside class="side" aria-label="Feed the belly and library">
-    <header class="brand">
-      <h1>PAC&amp;RAG</h1>
-      <p id="llm" class="llm"></p>
-      <button type="button" id="motion" role="switch" aria-checked="true" class="small">Animation</button>
-    </header>
-    <p id="status" class="status" role="status"></p>
-    <div class="alertbox">
-      <p id="alert" class="alert" role="alert"></p>
-      <button type="button" id="alert-x" class="small" hidden>Dismiss</button>
-    </div>
-
-    <section aria-labelledby="feed-h">
-      <h2 id="feed-h" tabindex="-1">Feed the belly</h2>
-      <form id="note-form" class="stack">
-        <label for="note">Note</label>
-        <textarea id="note" rows="3" maxlength="100000" placeholder="Type or paste anything worth remembering"></textarea>
-        <button type="submit">Add note</button>
-      </form>
-      <form id="url-form" class="stack">
-        <label for="url">Link</label>
-        <input id="url" type="url" placeholder="https://example.com/page" autocomplete="off">
-        <button type="submit">Add link</button>
-      </form>
-      <div class="stack">
-        <button type="button" id="pick">Choose files…</button>
-        <input id="files" type="file" multiple hidden>
-        <p class="help">You can also drop files, text or links anywhere on the page. Text files, web pages and notes are searched by content. PDFs and Word files are stored but cannot be read yet.</p>
-      </div>
-      <ul id="feedlog" class="feedlog" aria-label="Recent filings"></ul>
-    </section>
-
-    <section id="review-sec" aria-labelledby="review-h" hidden>
-      <h2 id="review-h" tabindex="-1">Ghosts: unsure about these</h2>
-      <p class="help">These show a lilac ring on the board.</p>
-      <ul id="review" class="list"></ul>
-    </section>
-
-    <section aria-labelledby="lib-h">
-      <h2 id="lib-h" tabindex="-1">Library</h2>
-      <div id="library"></div>
-    </section>
-  </aside>
-
-  <main class="main">
+  <!-- TOP: the stage. The board fills it; status, title and switches float on it. -->
+  <section class="stage" id="stage" aria-label="Board">
     <div class="board" id="board" tabindex="-1">
+      <div class="notices">
+        <p id="status" class="status" role="status"></p>
+        <div class="progress" id="progress" hidden><span id="progress-bar"></span></div>
+        <div class="alertbox">
+          <p id="alert" class="alert" role="alert" aria-atomic="false"></p>
+          <button type="button" id="alert-x" class="small" hidden>Dismiss</button>
+        </div>
+      </div>
       <canvas id="canvas" aria-hidden="true"></canvas>
     </div>
+    <header class="hud">
+      <div class="hud-brand">
+        <h1>PAC&amp;RAG</h1>
+        <p id="llm" class="llm"></p>
+      </div>
+      <div class="hud-tools">
+        <button type="button" id="llm-btn" class="small" aria-haspopup="dialog">AI model…</button>
+        <button type="button" id="motion" role="switch" aria-checked="true" aria-describedby="motion-note" class="small">Animation</button>
+        <button type="button" id="view-toggle" role="switch" aria-checked="true" class="small" hidden>3D view</button>
+      </div>
+      <p id="motion-note" class="help" hidden>Paused: your system asks for reduced motion</p>
+    </header>
+  </section>
 
-    <section class="chat" aria-labelledby="chat-h">
+  <!-- BOTTOM: one console. Ask, Add and Library are tabs of the same panel. -->
+  <section class="console" id="console" aria-label="Console">
+    <div class="tabs" role="tablist" aria-label="Console sections">
+      <button type="button" role="tab" id="tab-ask" aria-controls="pane-ask" aria-selected="true">Ask</button>
+      <button type="button" role="tab" id="tab-add" aria-controls="pane-add" aria-selected="false" tabindex="-1">Add</button>
+      <button type="button" role="tab" id="tab-lib" aria-controls="pane-lib" aria-selected="false" tabindex="-1">Library <span id="lib-badge" class="badge-count">0</span><span id="lib-ghosts" class="ghost-count" hidden></span></button>
+      <span class="kbd-hint"><kbd>Alt</kbd> + <kbd>/</kbd> to ask</span>
+    </div>
+
+    <!-- ASK -->
+    <div class="pane chat" id="pane-ask" role="tabpanel" aria-labelledby="tab-ask">
       <div class="chat-head">
-        <h2 id="chat-h">Chat</h2>
-        <a class="jump" href="#feed-h">Add files, notes or links</a>
-        <button type="button" id="clear" class="ghost">New chat</button>
+        <h2 id="chat-h" class="sr">Chat</h2>
+        <button type="button" id="clear" class="ghost small">New chat</button>
+      </div>
+      <div id="llm-banner" class="llm-banner" hidden>
+        <p><strong>No AI model connected.</strong> Search works, but answers are only quoted passages. Connect a local llama.cpp server or a cloud API key to get written answers.</p>
+        <button type="button" id="llm-banner-btn" class="small">Connect an AI model…</button>
       </div>
       <ol id="log" class="log" tabindex="0" aria-label="Conversation"></ol>
       <p id="sr" class="sr" aria-live="polite"></p>
@@ -78,12 +71,53 @@
       </div>
       <form id="ask-form" class="row">
         <label for="msg" class="sr">Message</label>
-        <input id="msg" maxlength="1000" autocomplete="off" placeholder="Ask a question, or type “extract dates from …”">
+        <input id="msg" aria-keyshortcuts="Alt+/" maxlength="1000" autocomplete="off" placeholder="Ask a question, or type “extract dates from …”">
         <button type="submit" id="send">Send</button>
       </form>
-    </section>
-  </main>
+    </div>
+
+    <!-- ADD -->
+    <div class="pane add" id="pane-add" role="tabpanel" aria-labelledby="tab-add" hidden>
+      <h2 id="feed-h" class="sr" tabindex="-1">Feed the core</h2>
+      <form id="note-form" class="add-form">
+        <label for="note" class="sr">Note or link</label>
+        <textarea id="note" rows="3" maxlength="100000" aria-describedby="note-hint" placeholder="Type a note, or paste a link"></textarea>
+        <div class="add-side">
+          <button type="submit" id="note-add">Add</button>
+          <button type="button" id="pick">Choose files…</button>
+          <input id="files" type="file" multiple hidden>
+        </div>
+      </form>
+      <form id="url-form" class="stack" hidden>
+        <label for="url">Link</label>
+        <input id="url" type="url" placeholder="https://example.com/page" autocomplete="off">
+        <button type="submit">Add link</button>
+      </form>
+      <p id="note-hint" class="help">A link is fetched and read; anything else is saved as a note. Ctrl+Enter adds it. You can also drop files, text or links on the board, or just paste. Text is read from text files, web pages, PDF, Word (.docx), PowerPoint, Excel and OpenDocument files; scanned or encrypted PDFs and old .doc files are stored but cannot be read.</p>
+      <ul id="feedlog" class="feedlog" aria-label="Recent filings" hidden></ul>
+    </div>
+
+    <!-- LIBRARY -->
+    <div class="pane lib" id="pane-lib" role="tabpanel" aria-labelledby="tab-lib" hidden>
+      <section id="review-sec" aria-labelledby="review-h" hidden>
+        <h2 id="review-h" tabindex="-1">Ghosts: unsure about these</h2>
+        <p class="help">These show a lilac ring on the board.</p>
+        <ul id="review" class="list"></ul>
+      </section>
+      <section aria-labelledby="lib-h">
+        <h2 id="lib-h" tabindex="-1">Library</h2>
+        <div id="lib-filter-wrap" class="stack" hidden>
+          <label for="lib-filter" class="sr">Filter by title, category or type</label>
+          <input id="lib-filter" type="search" placeholder="Filter by title, category or type, e.g. lease, link" autocomplete="off" aria-describedby="lib-count">
+          <p id="lib-count" class="help"></p>
+        </div>
+        <div id="library"></div>
+      </section>
+    </div>
+  </section>
 </div>
+
+<p id="boot-error" class="boot-error" role="alert" hidden></p>
 
 <dialog id="move" aria-labelledby="move-h">
   <form method="dialog">
@@ -99,6 +133,33 @@
   </form>
 </dialog>
 
+<dialog id="llm-dlg" aria-labelledby="llm-h">
+  <form id="llm-form" method="dialog">
+    <h2 id="llm-h">AI model for written answers</h2>
+    <p class="help">Without a model, answers quote your sources. With one, it writes an answer from the passages it retrieves, with citations. Search itself always runs on this machine.</p>
+    <label for="llm-provider">Provider</label>
+    <select id="llm-provider"></select>
+    <div id="llm-fields">
+      <label for="llm-url">Server address</label>
+      <input id="llm-url" type="url" autocomplete="off" spellcheck="false" aria-describedby="llm-url-help">
+      <p id="llm-url-help" class="help"></p>
+      <label for="llm-model">Model <span id="llm-model-opt" class="muted">(optional)</span></label>
+      <input id="llm-model" spellcheck="false" maxlength="200">
+      <label for="llm-key">API key <span id="llm-key-opt" class="muted"></span></label>
+      <input id="llm-key" type="password" autocomplete="off" spellcheck="false" maxlength="500" aria-describedby="llm-key-help">
+      <p id="llm-key-help" class="help"></p>
+      <label id="llm-clear-wrap" class="check" hidden><input type="checkbox" id="llm-clear"> Remove the saved key</label>
+    </div>
+    <p id="llm-privacy" class="help"></p>
+    <p id="llm-result" class="help" role="status"></p>
+    <div class="row end">
+      <button type="button" id="llm-cancel">Close</button>
+      <button type="button" id="llm-test">Test connection</button>
+      <button type="submit" id="llm-save">Save</button>
+    </div>
+  </form>
+</dialog>
+
 <dialog id="view" aria-labelledby="view-h">
   <h2 id="view-h"></h2>
   <p id="view-meta" class="muted"></p>
@@ -106,7 +167,8 @@
   <div class="row end"><button type="button" id="view-close">Close</button></div>
 </dialog>
 
-<script src="board.js"></script>
-<script src="app.js"></script>
+<script src="settings.js"></script>
+<script src="fileguard.js"></script>
+<script type="module" src="boot.js"></script>
 </body>
 </html>

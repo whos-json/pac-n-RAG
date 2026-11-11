@@ -1,0 +1,96 @@
+/* Design polish, loaded last. Follows the stageshow craft rules (github.com/benjitaylor/skills):
+   one type family (mono only for code and figures), sentence case, depth from surface steps not glow, no redundant borders,
+   nothing translucent overlapping, two motion curves, nothing pops. */
+:root {
+  --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif;
+  --surface-0: #07200f;   /* page */
+  --surface-1: #0a2a15;   /* console, drawers */
+  --surface-2: #0f3520;   /* cards, bubbles */
+  --surface-3: #154229;   /* hover, selected */
+  --travel: cubic-bezier(0.45, 0, 0.1, 1);
+  --arrive: cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+/* ---- type ---- */
+body { font: 14px/1.5 var(--sans); }
+code, pre, kbd, td:first-child, .badge-count, .ghost-count, .meta, .count, .b3d-room b { font-family: var(--mono); }
+.b3d-labels, .b3d-tip { font-family: var(--sans); }
+.b3d-room { font-weight: 700; letter-spacing: .01em; }
+.b3d-belly { font-weight: 600; letter-spacing: .06em; }
+h1 { font: 800 19px/1 var(--sans); letter-spacing: .02em; text-shadow: none; }
+h2 { font: 600 13px/1.3 var(--sans); letter-spacing: 0; text-transform: none; color: var(--trace); margin-bottom: 8px; }
+.llm, .help, label, .kbd-hint, .chips-label { font-family: var(--sans); }
+.llm { font-size: 11.5px; line-height: 1.4; }
+.help { font-size: 12.5px; line-height: 1.5; }
+.msg .who { font-size: 12px; letter-spacing: 0; text-transform: none; font-weight: 600; }
+.badge { text-transform: none; font: 600 11px var(--sans); border: 0; background: var(--surface-3); color: var(--muted); padding: 1px 7px; border-radius: 999px; }
+summary { color: var(--trace); font-weight: 600; }
+th { font: 600 12px var(--sans); }
+
+/* ---- surfaces: depth from steps, borders only where they separate ---- */
+.console { background: var(--surface-1); backdrop-filter: none; box-shadow: none; border-top: 1px solid var(--soft); }
+.tabs { border-bottom: 1px solid var(--soft); }
+.tabs [role="tab"] { font: 600 14px var(--sans); letter-spacing: 0; color: var(--muted); border-radius: 8px 8px 0 0; }
+.tabs [role="tab"]:hover { background: var(--surface-2); color: var(--trace); }
+.tabs [role="tab"][aria-selected="true"] { color: var(--trace); background: transparent; border-bottom-color: var(--orange); }
+.msg .body { border: 0; background: var(--surface-2); border-radius: 10px; padding: 10px 12px; }
+.msg.user .body { background: #123a48; }
+details { border: 0; background: var(--surface-2); border-radius: 10px; }
+details li, .list li { border: 0; background: var(--surface-1); border-radius: 8px; padding: 10px 12px; }
+.pane.lib #library details li { background: var(--surface-1); }
+li.hit { outline: 2px solid var(--focus); outline-offset: 0; }
+.scroll { border: 0; background: var(--surface-1); border-radius: 8px; }
+blockquote { border-left: 2px solid var(--soft); }
+input, textarea { background: var(--surface-0); border: 1px solid var(--soft); border-radius: 8px; }
+input:focus, textarea:focus { border-color: var(--line); }
+.row { gap: 10px; }
+
+/* ---- controls ---- */
+button { border-radius: 8px; border: 1px solid transparent; background: var(--surface-2); min-height: 34px; padding: 6px 14px; font-weight: 500; }
+button:hover:not(:disabled) { background: var(--surface-3); border-color: transparent; }
+button.small { min-height: 28px; padding: 3px 10px; }
+button[type="submit"], button[value="ok"] { background: #1f6b3b; border-color: transparent; font-weight: 600; }
+button[type="submit"]:hover:not(:disabled) { background: #268148; }
+button.ghost { background: transparent; color: var(--muted); }
+button.ghost:hover:not(:disabled) { background: var(--surface-2); color: var(--trace); }
+button.danger { background: transparent; border-color: var(--danger-line); }
+button[role="switch"][aria-checked="true"] { background: #1f6b3b; border-color: transparent; }
+button[role="switch"][aria-checked="false"] { background: transparent; border: 1px dashed var(--soft); }
+.chips button { background: var(--surface-2); border: 0; color: var(--trace); font-weight: 500; min-height: 30px; }
+.chips button:hover:not(:disabled) { background: var(--surface-3); }
+.cite { background: transparent; border: 1px solid var(--cyan); }
+.hud-tools button { background: #082414; backdrop-filter: none; border: 1px solid var(--soft); }
+
+/* ---- the add pane fills its space instead of leaving a band ---- */
+.pane.add { padding-bottom: 12px; }
+.add-form { flex: 1 1 auto; min-height: 0; }
+.add-form textarea { height: 100%; min-height: 72px; resize: none; font: 15px/1.5 var(--sans); }
+.add-side { width: 170px; }
+.pane.add > .help { flex: 0 0 auto; max-width: 90ch; }
+
+/* ---- toasts: opaque, no glow; arrive whole from above ---- */
+.status { background: var(--surface-1); border: 1px solid var(--soft); box-shadow: none; font: 500 13px var(--sans); border-radius: 999px; }
+.status.pop { animation: toast-in .5s var(--arrive); }
+.alertbox { background: #2a1010; border-color: var(--danger-line); }
+.progress { background: var(--surface-3); }
+.progress span { box-shadow: none; transition-timing-function: var(--travel); }
+@keyframes toast-in { from { opacity: 0; transform: translateY(-14px); } to { opacity: 1; transform: none; } }
+
+/* ---- tab switch: crossfade with an 8px rise ---- */
+.pane:not([hidden]) { animation: pane-in .2s var(--arrive); }
+@keyframes pane-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+/* ---- first-run card: an opaque surface, depth by step ---- */
+.welcome { background: var(--surface-1); backdrop-filter: none; box-shadow: none; border: 1px solid var(--soft); }
+.welcome h2 { color: var(--trace); font-size: 15px; }
+.steps b { color: var(--trace); }
+.welcome-actions button:first-child { background: #1f6b3b; }
+
+/* ---- flyers and rings: opaque, one icon family, no glow ---- */
+.flyer { box-shadow: none; background: var(--surface-1); border: 1px solid var(--c); font: 600 12px var(--sans); gap: 8px; }
+.flyer svg { width: 14px; height: 14px; flex: none; stroke: var(--c); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.flyer.ghost { filter: none; box-shadow: none; padding: 0; min-width: 0; min-height: 0; border: 0; border-radius: 50%; background: var(--c); }
+.ring { box-shadow: none; border-width: 2px; animation-timing-function: var(--arrive); }
+
+@media (prefers-reduced-motion: reduce) { .status.pop, .pane:not([hidden]) { animation: none; } }
+@media (forced-colors: active) { .tabs [role="tab"][aria-selected="true"] { border-bottom-color: Highlight; } }

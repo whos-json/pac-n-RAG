@@ -2,12 +2,30 @@
   "name": "pac-rag",
   "version": "0.1.0",
   "private": true,
+  "license": "UNLICENSED",
   "description": "A local, drag-and-drop knowledge base with a circuit-board chomper interface. Drop things in, they get indexed; ask questions or extract data in chat.",
+  "author": "PAC&RAG",
+  "main": "main.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node --test test/"
+    "test": "node --test",
+    "app": "node node_modules/electron/cli.js .",
+    "dist": "node node_modules/electron-builder/cli.js --win portable --x64"
   },
   "engines": {
-    "node": ">=18"
-  }
+    "node": ">=24"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "local.pacrag.app",
+    "productName": "PAC-RAG",
+    "directories": { "output": "dist" },
+    "files": ["main.js", "server.js", "workflow.js", "docs.js", "embed.js", "llm.js", "package.json", "public/**/*"],
+    "win": { "target": "portable", "signAndEditExecutable": false },
+    "portable": { "artifactName": "PAC-RAG.exe" }
+  },
+  "//": "The server itself has no dependencies; electron and electron-builder are dev-only, for the desktop build. Written answers use plain HTTP to a llama.cpp / OpenAI-compatible / Anthropic endpoint configured in the app, so no SDK is needed"
 }

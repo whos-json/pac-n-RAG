@@ -253,7 +253,13 @@
       const nearId = near && near.id;
       b.dataset.busy = '1';
       try { await api(`/api/items/${it.id}`, { method: 'DELETE' }); }
-      catch (e) { delete b.dataset.busy; fail(e.message); refresh().catch(() => {}); return; } // it may already be gone elsewhere: resync so a stale row goes away
+      catch (e) { // it may already be gone elsewhere: resync first (a successful refresh clears older errors), then report
+        delete b.dataset.busy;
+        await refresh().catch(() => {});
+        if (e.message === 'No such item.') say(`“${name}” was already deleted elsewhere, so it has been removed from the list.`);
+        else fail(e.message);
+        return;
+      }
       say(`Deleted “${name}”.`);
       const had = document.activeElement === b || document.activeElement === document.body;
       try {
@@ -285,7 +291,7 @@
   }
   async function keepGuess(it) {
     try { await api(`/api/items/${it.id}`, { method: 'PATCH', headers: JSON_H, body: JSON.stringify({ reviewed: true }) }); }
-    catch (e) { fail(e.message); refresh().catch(() => {}); return; } // the item may have changed or gone elsewhere: resync the lists
+    catch (e) { await refresh().catch(() => {}); fail(e.message); return; } // the item may have changed or gone elsewhere: resync first, then report
     say(`Kept “${it.title}” in ${it.category}.`);
     try { await refresh(); } catch (e) { refreshFailed(e); }
   }
@@ -324,7 +330,7 @@
     const it = moving;
     if ((items.find((i) => i.id === it.id) || it).category === category) { say(`No change: “${it.title}” is already in ${category}.`); return restoreFocus(); }
     try { await api(`/api/items/${it.id}`, { method: 'PATCH', headers: JSON_H, body: JSON.stringify({ category }) }); say(`Moved “${it.title}” to ${category}.`); await refresh(); focusItem(it.id); }
-    catch (e) { fail(e.message); restoreFocus(); refresh().catch(() => {}); }
+    catch (e) { restoreFocus(); await refresh().catch(() => {}); fail(e.message); }
   });
   async function openView(it) {
     const dlg = $('#view');
@@ -339,7 +345,7 @@
       $('#view-meta').textContent = [full.category, kindOf(full), full.source, full.noText && 'no text could be extracted', full.truncated && 'truncated at 2,000,000 characters'].filter(Boolean).join(' · ');
       $('#view-text').textContent = full.text || '(no text)';
       dlg.showModal();
-    } catch (e) { fail(e.message); refresh().catch(() => {}); } // a 404 means another tab removed it: resync
+    } catch (e) { await refresh().catch(() => {}); fail(e.message); } // a 404 means another tab removed it: resync first, then report
   }
   $('#view-close').addEventListener('click', () => $('#view').close());
   $('#view').addEventListener('close', restoreFocus);

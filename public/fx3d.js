@@ -127,7 +127,12 @@ export const makeCinePass = () => new ShaderPass(CineShader);
 // ---- quality tiers and the adaptive controller (our stand-in for DLSS: render fewer pixels when the frame is late, more when there is headroom) ----
 export function parseQuality() {
   const q = new URLSearchParams(location.search);
-  const tier = ['low', 'high', 'ultra'].includes(q.get('quality')) ? q.get('quality') : 'ultra';
+  let tier = 'high'; // ultra (mirror floor, 4x MSAA) is opt-in: it is the heaviest and the first thing to lose a GPU context
+  try {
+    const asked = q.get('quality');
+    if (['low', 'high', 'ultra'].includes(asked)) { tier = asked; localStorage.setItem('pacrag.quality', asked); }
+    else if (['low', 'high', 'ultra'].includes(localStorage.getItem('pacrag.quality'))) tier = localStorage.getItem('pacrag.quality');
+  } catch (e) { /* storage blocked: the default applies */ }
   return { tier, adaptive: q.get('adaptive') !== '0', hud: q.get('hud') === '1' };
 }
 export class Adaptive {

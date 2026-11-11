@@ -6,6 +6,7 @@
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
   const onChange = (mq, fn) => { if (mq.addEventListener) mq.addEventListener('change', fn); else if (mq.addListener) mq.addListener(fn); }; // old Safari only has addListener
   const TAU = Math.PI * 2;
+  const TOP = 60; // room for the title bar and switches that float over the top of the board
   const PAD = 16, BELT = 170, MIN_ROOM = 120, GAP = 14; // BELT: space below the rooms for the bus, the belly and its caption
 
   function rng(seed) { let s = seed; return () => { s = (s * 1664525 + 1013904223) % 4294967296; return s / 4294967296; }; }
@@ -56,7 +57,7 @@
 
     const needed = (width) => { // rooms never shrink below MIN_ROOM: the board grows and scrolls instead
       const n = Math.max(cats.length, 1), cols = Math.max(1, Math.min(n, Math.floor((width - PAD * 2) / 170))), rows = Math.ceil(n / cols);
-      return PAD + rows * MIN_ROOM + (rows - 1) * GAP + BELT;
+      return TOP + rows * MIN_ROOM + (rows - 1) * GAP + BELT;
     };
 
     function resize() {
@@ -78,7 +79,7 @@
     }
 
     function layout() {
-      const areaX = PAD, areaY = PAD, areaW = w - PAD * 2, areaH = Math.max(MIN_ROOM, h - BELT - PAD);
+      const areaX = PAD, areaY = TOP, areaW = w - PAD * 2, areaH = Math.max(MIN_ROOM, h - BELT - TOP);
       corridorY = areaY + areaH + 18;
       belly = { x: w / 2, y: h - 84, pad: 44, r: 26 };
       index = new Map();
@@ -144,11 +145,11 @@
     function drawRooms() {
       ctx.save();
       if (!rooms.length) {
-        const ah = Math.max(MIN_ROOM, h - BELT - PAD);
+        const ah = Math.max(MIN_ROOM, h - BELT - TOP);
         ctx.setLineDash([8, 8]); ctx.strokeStyle = 'rgba(234,255,241,.45)'; ctx.lineWidth = 2;
-        rr(PAD, PAD, w - PAD * 2, ah, 14); ctx.stroke(); ctx.setLineDash([]);
+        rr(PAD, TOP, w - PAD * 2, ah, 14); ctx.stroke(); ctx.setLineDash([]);
         ctx.fillStyle = 'rgba(234,255,241,.7)'; ctx.font = '600 14px ui-monospace, Consolas, monospace'; ctx.textAlign = 'center';
-        ctx.fillText(emptyText, w / 2, PAD + ah / 2);
+        ctx.fillText(emptyText, w / 2, TOP + ah / 2);
         ctx.restore(); return;
       }
       rooms.forEach((r) => {

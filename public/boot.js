@@ -12,6 +12,13 @@ function wants3d() {
 }
 
 const switchView = (to) => { try { localStorage.setItem('pacrag.view', to); } catch (e) { /* the URL parameter below still works */ } location.search = `?view=${to}`; };
+let failedOnce = false; // the 3D board lost its GPU context or threw while rendering: go to the flat board and remember it
+addEventListener('pacrag:3d-failed', (e) => {
+  if (failedOnce) return; failedOnce = true;
+  console.warn('3D board failed, switching to the flat board:', e.detail);
+  try { sessionStorage.setItem('pacrag.why', String(e.detail || 'gpu')); } catch (err) { /* only the explanation is lost */ }
+  switchView('2d');
+});
 const wire = (is3d, canSwitch) => { // the "View" switch lives in index.html; this only labels and wires it
   const b = document.getElementById('view-toggle');
   if (!b) return;

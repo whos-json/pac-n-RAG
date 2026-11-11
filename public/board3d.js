@@ -81,7 +81,9 @@ export function create(host, opts) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' }); // throws without WebGL; the caller falls back to the 2D board
   const Q = parseQuality(); // ?quality=low|high|ultra, ?adaptive=0, ?hud=1
   if (Q.tier === 'ultra' && matchMedia('(pointer: coarse)').matches) Q.tier = 'high'; // phones and tablets skip the mirror floor
-  const basePR = Math.min(window.devicePixelRatio || 1, Q.tier === 'ultra' ? 2 : 1.5);
+  const MAX_PX = Q.tier === 'ultra' ? 4e6 : 2.4e6; // never render more pixels than this, whatever the screen: huge HDR targets are what lose a GPU context
+  const maxPR = Math.min(window.devicePixelRatio || 1, Q.tier === 'ultra' ? 2 : 1.5);
+  let basePR = maxPR;
   renderer.setPixelRatio(basePR);
   renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.95;
   host.append(canvas);
@@ -95,7 +97,7 @@ export function create(host, opts) {
   scene.add(new THREE.AmbientLight(0xffffff, 0.35));
   const sun = new THREE.DirectionalLight(0xffffff, 1.1); sun.position.set(6, 14, 10); scene.add(sun);
 
-  const rt = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: Q.tier === 'low' ? 0 : 4 });
+  const rt = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: Q.tier === 'low' ? 0 : Q.tier === 'high' ? 2 : 4 });
   const composer = new EffectComposer(renderer, rt);
   composer.setPixelRatio(basePR);
   composer.addPass(new RenderPass(scene, camera));
@@ -327,6 +329,8 @@ export function create(host, opts) {
     const w = Math.max(200, host.clientWidth), h = Math.max(200, host.clientHeight);
     if (w === W && h === H) return;
     W = w; H = h;
+    basePR = Math.min(maxPR, Math.sqrt(MAX_PX / (W * H)));
+    renderer.setPixelRatio(basePR * adaptive.scale); composer.setPixelRatio(basePR * adaptive.scale);
     renderer.setSize(W, H, false);
     composer.setSize(W, H);
     cine.uniforms.uRes.value.set(W * renderer.getPixelRatio(), H * renderer.getPixelRatio());
@@ -529,10 +533,17 @@ export function create(host, opts) {
   let hud = null, fpsEma = 60, hudN = 0;
   if (Q.hud) { hud = document.createElement('div'); hud.className = 'b3d-hud'; hud.setAttribute('aria-hidden', 'true'); host.append(hud); }
 
+  let renderFailed = false;
+  function render() { // a throwing render would otherwise leave a black board with no explanation
+    try { composer.render(); } catch (e) {
+      if (!renderFailed) { renderFailed = true; console.error('3D render failed', e); window.dispatchEvent(new CustomEvent('pacrag:3d-failed', { detail: String(e && e.message || e) })); }
+    }
+  }
+
   function draw() {
     if (!W) return;
     update(0, nowMs());
-    composer.render();
+    render();
     placeLabels();
   }
   document.addEventListener('visibilitychange', () => { if (!document.hidden) { kick(); } });
@@ -543,7 +554,7 @@ export function create(host, opts) {
     if (adaptive.tick(ms)) cine.uniforms.uRes.value.set(W * renderer.getPixelRatio(), H * renderer.getPixelRatio());
     if (hud) { fpsEma += ((1000 / Math.max(1, ms)) - fpsEma) * 0.1; if (++hudN % 15 === 0) hud.textContent = `${Q.tier} · ${Math.round(fpsEma)} fps · ${Math.round(W * renderer.getPixelRatio())}x${Math.round(H * renderer.getPixelRatio())} (${adaptive.scale.toFixed(2)}x, fx ${2 - adaptive.level}/2${adaptive.enabled ? '' : ', adaptive off'}, ${Math.round(adaptive.ema)} ms)`; }
     update(dt, nowMs());
-    composer.render();
+    render();
     placeLabels();
     if (moving()) raf = requestAnimationFrame(frame);
   }
@@ -571,7 +582,14 @@ export function create(host, opts) {
   });
   canvas.addEventListener('pointerleave', () => { tip.hidden = true; mouse.x = mouse.y = 0; hover = null; canvas.style.cursor = ''; });
   canvas.addEventListener('click', (e) => { const h = pick(e); if (h && opts.onPellet) opts.onPellet(h.p.id); });
-  canvas.addEventListener('webglcontextlost', (e) => e.preventDefault()); // three.js rebuilds its GPU state when the context is restored
+  // A lost GPU context leaves a black canvas. Give the browser a moment to restore it; if it does not, switch to the flat board for good.
+  let lostTimer = 0;
+  canvas.addEventListener('webglcontextlost', (e) => {
+    e.preventDefault();
+    clearTimeout(lostTimer);
+    lostTimer = setTimeout(() => window.dispatchEvent(new CustomEvent('pacrag:3d-failed', { detail: 'context lost' })), 2500);
+  });
+  canvas.addEventListener('webglcontextrestored', () => { clearTimeout(lostTimer); W = H = 0; resize(); kick(); });
 
   let pending = false;
   const ro = new ResizeObserver(() => { if (pending) return; pending = true; requestAnimationFrame(() => { pending = false; resize(); }); });

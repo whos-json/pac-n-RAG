@@ -1,0 +1,1 @@
+JavaScript promises and async await. A promise represents a value that will be available later. Use async functions with await to write asynchronous JavaScript code that reads like synchronous code. Always catch errors with try and catch, or with a catch handler on the promise. Promise.all runs several promises in parallel.

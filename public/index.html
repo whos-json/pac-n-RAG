@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PAC&amp;RAG</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<a class="skip" href="#msg">Skip to chat</a>
+<a class="skip skip2" href="#feed-h">Skip to feeding the belly</a>
+<div class="app">
+  <aside class="side" aria-label="Feed the belly and library">
+    <header class="brand">
+      <h1>PAC&amp;RAG</h1>
+      <p id="llm" class="llm"></p>
+      <button type="button" id="motion" role="switch" aria-checked="true" class="small">Animation</button>
+    </header>
+    <p id="status" class="status" role="status"></p>
+    <div class="alertbox">
+      <p id="alert" class="alert" role="alert"></p>
+      <button type="button" id="alert-x" class="small" hidden>Dismiss</button>
+    </div>
+
+    <section aria-labelledby="feed-h">
+      <h2 id="feed-h" tabindex="-1">Feed the belly</h2>
+      <form id="note-form" class="stack">
+        <label for="note">Note</label>
+        <textarea id="note" rows="3" maxlength="100000" placeholder="Type or paste anything worth remembering"></textarea>
+        <button type="submit">Add note</button>
+      </form>
+      <form id="url-form" class="stack">
+        <label for="url">Link</label>
+        <input id="url" type="url" placeholder="https://example.com/page" autocomplete="off">
+        <button type="submit">Add link</button>
+      </form>
+      <div class="stack">
+        <button type="button" id="pick">Choose files…</button>
+        <input id="files" type="file" multiple hidden>
+        <p class="help">You can also drop files, text or links anywhere on the page. Text files, web pages and notes are searched by content. PDFs and Word files are stored but cannot be read yet.</p>
+      </div>
+      <ul id="feedlog" class="feedlog" aria-label="Recent filings"></ul>
+    </section>
+
+    <section id="review-sec" aria-labelledby="review-h" hidden>
+      <h2 id="review-h" tabindex="-1">Ghosts: unsure about these</h2>
+      <p class="help">These show a lilac ring on the board.</p>
+      <ul id="review" class="list"></ul>
+    </section>
+
+    <section aria-labelledby="lib-h">
+      <h2 id="lib-h" tabindex="-1">Library</h2>
+      <div id="library"></div>
+    </section>
+  </aside>
+
+  <main class="main">
+    <div class="board" id="board" tabindex="-1">
+      <canvas id="canvas" aria-hidden="true"></canvas>
+    </div>
+
+    <section class="chat" aria-labelledby="chat-h">
+      <div class="chat-head">
+        <h2 id="chat-h">Chat</h2>
+        <a class="jump" href="#feed-h">Add files, notes or links</a>
+        <button type="button" id="clear" class="ghost">New chat</button>
+      </div>
+      <ol id="log" class="log" tabindex="0" aria-label="Conversation"></ol>
+      <p id="sr" class="sr" aria-live="polite"></p>
+      <div class="chips" role="group" aria-label="Quick extract">
+        <span class="chips-label">Extract:</span>
+        <button type="button" data-q="extract dates">Dates</button>
+        <button type="button" data-q="extract amounts">Amounts</button>
+        <button type="button" data-q="extract emails">Emails</button>
+        <button type="button" data-q="extract links">Links</button>
+        <button type="button" data-q="extract phones">Phones</button>
+      </div>
+      <form id="ask-form" class="row">
+        <label for="msg" class="sr">Message</label>
+        <input id="msg" maxlength="1000" autocomplete="off" placeholder="Ask a question, or type “extract dates from …”">
+        <button type="submit" id="send">Send</button>
+      </form>
+    </section>
+  </main>
+</div>
+
+<dialog id="move" aria-labelledby="move-h">
+  <form method="dialog">
+    <h2 id="move-h">Move to a category</h2>
+    <p id="move-title" class="muted"></p>
+    <label for="move-cat">Category</label>
+    <input id="move-cat" list="cat-list" maxlength="40" required autocomplete="off">
+    <datalist id="cat-list"></datalist>
+    <div class="row end">
+      <button type="button" id="move-cancel">Cancel</button>
+      <button value="ok">Move</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="view" aria-labelledby="view-h">
+  <h2 id="view-h"></h2>
+  <p id="view-meta" class="muted"></p>
+  <pre id="view-text" tabindex="0" role="region" aria-label="Item text"></pre>
+  <div class="row end"><button type="button" id="view-close">Close</button></div>
+</dialog>
+
+<script src="board.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

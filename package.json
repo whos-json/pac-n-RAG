@@ -1,0 +1,13 @@
+{
+  "name": "pac-rag",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A local, drag-and-drop knowledge base with a circuit-board chomper interface. Drop things in, they get indexed; ask questions or extract data in chat.",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test test/"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

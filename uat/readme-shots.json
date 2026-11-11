@@ -1,0 +1,18 @@
+[
+  {"wait": 3500},
+  {"shot": "docs/screenshots/board.png"},
+  {"eval": "document.getElementById('msg').value='When can the tenant break the lease?'; document.getElementById('ask-form').requestSubmit();"},
+  {"wait": 3500},
+  {"shot": "docs/screenshots/ask.png"},
+  {"eval": "document.querySelector('button[data-q=\"extract amounts\"]').click();"},
+  {"wait": 3000},
+  {"shot": "docs/screenshots/extract.png"},
+  {"eval": "document.getElementById('tab-lib').click();"},
+  {"wait": 1500},
+  {"shot": "docs/screenshots/library.png"},
+  {"eval": "document.getElementById('tab-ask').click(); document.getElementById('llm-btn').click();"},
+  {"wait": 800},
+  {"eval": "var s=document.getElementById('llm-provider'); s.value='llamacpp'; s.dispatchEvent(new Event('change',{bubbles:true}));"},
+  {"wait": 800},
+  {"shot": "docs/screenshots/ai-model.png"}
+]

@@ -1,0 +1,18 @@
+[
+  {"wait": 3000},
+  {"log": "({overflowX: document.documentElement.scrollWidth - innerWidth, unlabeledButtons: [...document.querySelectorAll('button,input,select,textarea')].filter(e=>!e.hidden && e.type!=='hidden' && !(e.getAttribute('aria-label')||e.textContent.trim()||(e.labels&&e.labels.length)||e.placeholder||e.title)).map(e=>e.id||e.outerHTML.slice(0,60)), imgNoAlt: [...document.images].filter(i=>!i.alt&&i.alt!=='').length})"},
+  {"eval": "document.dispatchEvent(new KeyboardEvent('keydown',{key:'/',altKey:true,bubbles:true}));"},
+  {"log": "document.activeElement && document.activeElement.id"},
+  {"eval": "document.getElementById('tab-add').click(); var n=document.getElementById('note'); n.value='Dentist appointment on 4 March 2027 costs $85. Call +1 415 555 0100.'; document.getElementById('note-form').requestSubmit();"},
+  {"wait": 2500},
+  {"log": "document.getElementById('status').textContent + ' | items=' + document.getElementById('lib-badge').textContent"},
+  {"eval": "document.getElementById('note').value='Dentist appointment on 4 March 2027 costs $85. Call +1 415 555 0100.'; document.getElementById('note-form').requestSubmit();"},
+  {"wait": 1500},
+  {"log": "'duplicate -> ' + document.getElementById('alert').textContent"},
+  {"eval": "document.getElementById('note').value='   '; document.getElementById('note-form').requestSubmit();"},
+  {"wait": 800},
+  {"log": "'empty -> ' + document.getElementById('alert').textContent"},
+  {"eval": "document.getElementById('tab-ask').click(); document.getElementById('msg').value='what is the weather on mars'; document.getElementById('ask-form').requestSubmit();"},
+  {"wait": 2000},
+  {"log": "'unanswerable -> ' + [...document.querySelectorAll('#log .msg')].pop().textContent.slice(0,200)"}
+]

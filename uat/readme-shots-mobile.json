@@ -1,0 +1,6 @@
+[
+  {"wait": 3500},
+  {"eval": "document.getElementById('msg').value='How much is the rent?'; document.getElementById('ask-form').requestSubmit();"},
+  {"wait": 3000},
+  {"shot": "docs/screenshots/mobile.png"}
+]
